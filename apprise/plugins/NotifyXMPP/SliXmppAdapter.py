@@ -51,6 +51,8 @@ class SliXmppAdapter(object):
         "/etc/pki/tls/cacert.pem",
         # CentOS/RHEL 7
         "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
+        # Alpine Linux
+        "/etc/ssl/cert.pem",
     ]
 
     # This entry is a bit hacky, but it allows us to unit-test this library
@@ -152,6 +154,10 @@ class SliXmppAdapter(object):
         self.override_connection = \
             None if not self.port else (self.host, self.port)
 
+        # Instruct slixmpp to connect to the XMPP service at the time process()
+        # is called later on
+        self.xmpp.connect(self.override_connection, use_ssl=self.secure)
+
         # We're good
         return True
 
@@ -160,11 +166,6 @@ class SliXmppAdapter(object):
         Thread that handles the server/client i/o
 
         """
-
-        # Instruct slixmpp to connect to the XMPP service.
-        if not self.xmpp.connect(
-                self.override_connection, use_ssl=self.secure):
-            return False
 
         # Run the asyncio event loop, and return once disconnected,
         # for any reason.
@@ -181,6 +182,13 @@ class SliXmppAdapter(object):
         if not targets:
             # We always default to notifying ourselves
             targets.append(self.jid)
+
+        if not self.xmpp.is_connected():
+            # Ensure we're set to not handle this
+            self.success = False
+
+            # We're done
+            return
 
         while len(targets) > 0:
 
@@ -201,3 +209,6 @@ class SliXmppAdapter(object):
 
         # Toggle our success flag
         self.success = True
+
+        # We're done
+        return
